@@ -1,0 +1,110 @@
+{
+  "baseline_test": {
+    "Experiment": "Baseline",
+    "Model": "RandomForest (reference)",
+    "Split": "test",
+    "Accuracy": 0.7694915254237288,
+    "Macro Precision": 0.7456762221783159,
+    "Macro Recall": 0.6704751498642482,
+    "Macro-F1": 0.6842302450589351,
+    "Weighted F1": 0.7491641730844911,
+    "Dropout F1": 0.7838827838827839,
+    "Enrolled F1": 0.425531914893617,
+    "Graduate F1": 0.8432760364004045
+  },
+  "best_test": {
+    "Experiment": "F RandomOverSampler final",
+    "Model": "RandomForest with imbalance strategy",
+    "Split": "test",
+    "Accuracy": 0.7661016949152543,
+    "Macro Precision": 0.722323252230623,
+    "Macro Recall": 0.7110807888777594,
+    "Macro-F1": 0.7137181892136626,
+    "Weighted F1": 0.76716686159757,
+    "Dropout F1": 0.7730769230769231,
+    "Enrolled F1": 0.5134328358208955,
+    "Graduate F1": 0.8546448087431694
+  },
+  "selected_experiment": "F RandomOverSampler",
+  "selected_representation": "All engineered",
+  "imbalance_cv_table": [
+    {
+      "Experiment": "F RandomOverSampler",
+      "Balancing": "RandomOverSampler on training folds",
+      "Accuracy": 0.759790397277591,
+      "Macro-F1": 0.7048101092355067,
+      "Enrolled F1": 0.49687142210506696,
+      "Dropout F1": 0.7880184331797235,
+      "Graduate F1": 0.8493150684931506,
+      "Validation Accuracy": 0.7627118644067796,
+      "Validation Macro-F1": 0.7018624899756141,
+      "Validation Enrolled F1": 0.46825396825396826
+    },
+    {
+      "Experiment": "B balanced",
+      "Balancing": "balanced",
+      "Accuracy": 0.7679178574210207,
+      "Macro-F1": 0.7043935230668903,
+      "Enrolled F1": 0.48444342683019664,
+      "Dropout F1": 0.7808219178082192,
+      "Graduate F1": 0.8544474393530997,
+      "Validation Accuracy": 0.7669491525423728,
+      "Validation Macro-F1": 0.7004570173588577,
+      "Validation Enrolled F1": 0.4661016949152542
+    },
+    {
+      "Experiment": "E Enrolled 1.75x",
+      "Balancing": "{0: 1.0, 1: 1.75, 2: 1.0}",
+      "Accuracy": 0.766152320697857,
+      "Macro-F1": 0.6991352731450716,
+      "Enrolled F1": 0.4754105962786402,
+      "Dropout F1": 0.7870370370370371,
+      "Graduate F1": 0.8655126498002663,
+      "Validation Accuracy": 0.7782485875706214,
+      "Validation Macro-F1": 0.7110787940387578,
+      "Validation Enrolled F1": 0.48068669527896996
+    },
+    {
+      "Experiment": "D Enrolled 1.50x",
+      "Balancing": "{0: 1.0, 1: 1.5, 2: 1.0}",
+      "Accuracy": 0.7647398913193258,
+      "Macro-F1": 0.6952319314105452,
+      "Enrolled F1": 0.4636224127709006,
+      "Dropout F1": 0.7844036697247706,
+      "Graduate F1": 0.8598130841121495,
+      "Validation Accuracy": 0.7711864406779662,
+      "Validation Macro-F1": 0.7010304042371264,
+      "Validation Enrolled F1": 0.4588744588744589
+    },
+    {
+      "Experiment": "A Current Best / no weighting",
+      "Balancing": "None",
+      "Accuracy": 0.7672116427317551,
+      "Macro-F1": 0.6940659626685372,
+      "Enrolled F1": 0.45628919192071576,
+      "Dropout F1": 0.7917620137299771,
+      "Graduate F1": 0.8575233022636485,
+      "Validation Accuracy": 0.7740112994350282,
+      "Validation Macro-F1": 0.7047325322317933,
+      "Validation Enrolled F1": 0.4649122807017544
+    },
+    {
+      "Experiment": "C Enrolled 1.25x",
+      "Balancing": "{0: 1.0, 1: 1.25, 2: 1.0}",
+      "Accuracy": 0.7650933731150134,
+      "Macro-F1": 0.6938519863544493,
+      "Enrolled F1": 0.4587297256971023,
+      "Dropout F1": 0.7808219178082192,
+      "Graduate F1": 0.8594377510040161,
+      "Validation Accuracy": 0.768361581920904,
+      "Validation Macro-F1": 0.6968253730095618,
+      "Validation Enrolled F1": 0.45021645021645024
+    }
+  ],
+  "random_state": 42,
+  "target_classes": [
+    "Dropout",
+    "Enrolled",
+    "Graduate"
+  ]
+}
