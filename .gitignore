@@ -1,3 +1,14 @@
-.vscode
-.model
-__pycache__
+# MLflow
+mlflow.db
+mlruns/
+
+# Python
+__pycache__/
+*.py[cod]
+
+# Environment
+.env
+.env.*
+
+# DVC local credentials
+.dvc/config.local

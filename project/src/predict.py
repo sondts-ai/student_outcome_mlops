@@ -13,7 +13,7 @@ from feature_engineering import add_engineered_features
 
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 
-DATA_PATH = PROJECT_ROOT.parent / "dataset (1).csv"
+DATA_PATH = PROJECT_ROOT.parent / "data" / "raw" / "dataset.csv"
 
 MODEL_PATH = PROJECT_ROOT.parent / "models" / "best_model.joblib"
 
