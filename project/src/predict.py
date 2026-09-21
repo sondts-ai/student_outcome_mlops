@@ -8,9 +8,8 @@ import pandas as pd
 
 
 
-from data_preprocessing import CLASS_NAMES
-from feature_engineering import add_engineered_features
-
+from project.src.data_preprocessing import CLASS_NAMES
+from project.src.feature_engineering import add_engineered_features
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 
 DATA_PATH = PROJECT_ROOT.parent / "data" / "raw" / "dataset.csv"

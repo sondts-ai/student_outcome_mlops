@@ -9,13 +9,13 @@ from sklearn.ensemble import RandomForestClassifier
 import mlflow
 from sklearn.metrics import accuracy_score
 
-from data_preprocessing import (
+from project.src.data_preprocessing import (
     RANDOM_STATE,
     load_dataset,
     make_preprocessor,
     split_dataset,
 )
-from feature_engineering import ENGINEERED_NUMERICAL_COLS, add_engineered_features
+from project.src.feature_engineering import ENGINEERED_NUMERICAL_COLS, add_engineered_features
 
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 

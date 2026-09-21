@@ -9,8 +9,8 @@ from sklearn.metrics import (
     confusion_matrix,
 )
 import mlflow
-from data_preprocessing import CLASS_NAMES, load_dataset, split_dataset
-from feature_engineering import add_engineered_features
+from project.src.data_preprocessing import CLASS_NAMES, load_dataset, split_dataset
+from project.src.feature_engineering import add_engineered_features
 
 
 PROJECT_ROOT = Path(__file__).resolve().parent.parent

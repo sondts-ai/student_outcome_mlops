@@ -1,5 +1,5 @@
-from evaluate import evaluate_model
-from train import train_model
+from project.src.evaluate import evaluate_model
+from project.src.train import train_model
 import mlflow
 
 if __name__ == "__main__":

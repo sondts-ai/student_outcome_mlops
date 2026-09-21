@@ -1,4 +1,12 @@
 services:
+  api:
+    build: .
+    container_name: student-mlops-api
+    ports:
+      - "8005:8005"
+    depends_on:
+      - minio
+      
   minio:
     image: quay.io/minio/minio
     container_name: minio

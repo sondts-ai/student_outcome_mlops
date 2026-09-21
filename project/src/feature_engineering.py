@@ -1,7 +1,7 @@
 import numpy as np
 import pandas as pd
 
-from data_preprocessing import NUMERICAL_COLS
+from project.src.data_preprocessing import NUMERICAL_COLS
 
 ENGINEERED_COLS = [
     "1st_sem_approval_rate",
