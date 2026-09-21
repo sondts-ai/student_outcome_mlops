@@ -1,6 +1,6 @@
 stages:
   train:
-    cmd: python project/src/train.py
+    cmd: python -m project.src.train
     deps:
       - project/src/train.py
       - project/src/data_preprocessing.py
@@ -10,7 +10,7 @@ stages:
       - models/best_model.joblib
 
   evaluate:
-    cmd: python project/src/evaluate.py
+    cmd: python -m project.src.evaluate
     deps:
       - project/src/evaluate.py
       - project/src/data_preprocessing.py

@@ -1,54 +1,65 @@
 schema: '2.0'
 stages:
   train:
-    cmd: python project/src/train.py
+    cmd: python -m project.src.train
     deps:
     - path: data/raw/dataset.csv
       hash: md5
       md5: 70fa01ee10da1bd9b17fe18234356bfa
       size: 470858
+      isexec: true
     - path: project/src/data_preprocessing.py
       hash: md5
       md5: 36a2af6a3a3ee97969cacb8b70552213
       size: 2706
+      isexec: true
     - path: project/src/feature_engineering.py
       hash: md5
-      md5: a2f014810e888fdc6062ae29a060253c
-      size: 1722
+      md5: 058898f2708a80bb62ec932dde14eaf6
+      size: 1734
+      isexec: true
     - path: project/src/train.py
       hash: md5
-      md5: d4dca3daa5aa1118d60b44ad775b5576
-      size: 1943
+      md5: bf69bedeff5cfccc266d3fbc956b2f68
+      size: 2678
+      isexec: true
     outs:
     - path: models/best_model.joblib
       hash: md5
-      md5: e7e6b1a39dbb4548572e9c219a59fb01
-      size: 61601494
+      md5: c0b271f74eb0effca983144bfeeed331
+      size: 61601542
+      isexec: true
   evaluate:
-    cmd: python project/src/evaluate.py
+    cmd: python -m project.src.evaluate
     deps:
     - path: data/raw/dataset.csv
       hash: md5
       md5: 70fa01ee10da1bd9b17fe18234356bfa
       size: 470858
+      isexec: true
     - path: models/best_model.joblib
       hash: md5
-      md5: e7e6b1a39dbb4548572e9c219a59fb01
-      size: 61601494
+      md5: c0b271f74eb0effca983144bfeeed331
+      size: 61601542
+      isexec: true
     - path: project/src/data_preprocessing.py
       hash: md5
       md5: 36a2af6a3a3ee97969cacb8b70552213
       size: 2706
+      isexec: true
     - path: project/src/evaluate.py
       hash: md5
-      md5: 4b6daafba67dc4676065f9f36fe09fe0
-      size: 1903
+      md5: ce5a438254583e53d6e8c0bb971aa150
+      size: 2610
+      isexec: true
     - path: project/src/feature_engineering.py
       hash: md5
-      md5: a2f014810e888fdc6062ae29a060253c
-      size: 1722
+      md5: 058898f2708a80bb62ec932dde14eaf6
+      size: 1734
+      isexec: true
     outs:
     - path: reports/metrics.json
       hash: md5
-      md5: eeac8b844bed48f7e69934f30143fcdf
-      size: 1373
+      md5: b69ed38e41ddd58159d0c88fd46fb48c
+      size: 1321
+      isexec: true

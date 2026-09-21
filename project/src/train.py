@@ -76,7 +76,7 @@ def train_model():
                             "imblearn.pipeline.Pipeline",
                             "sklearn.tree._tree.Tree",
                         ],)
-    return model
+    return None
 
 
 if __name__ == "__main__":
