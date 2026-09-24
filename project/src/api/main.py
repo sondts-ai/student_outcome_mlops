@@ -49,7 +49,7 @@ FIELD_MAPPING = {
 }
 
 
-@app.get("/heath")
+@app.get("/health")
 def heath():
     return {"status":"ok"}
 

@@ -6,3 +6,5 @@ scikit-learn
 imbalanced-learn
 joblib
 pydantic
+gradio
+requests
