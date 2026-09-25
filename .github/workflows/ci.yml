@@ -35,3 +35,7 @@ jobs:
       - name: Build UI Docker image
         run: |
           docker build -f dockerfile.ui -t student-mlops-ui .
+
+      - name: Run API tests
+        run: |
+          PYTHONPATH=. pytest tests/test_api.py -v
