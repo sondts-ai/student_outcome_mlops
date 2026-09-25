@@ -32,3 +32,6 @@ jobs:
       - name: Build Docker image
         run: |
           docker build -t student-mlops-api .
+      - name: Build UI Docker image
+        run: |
+          docker build -f dockerfile.ui -t student-mlops-ui .
