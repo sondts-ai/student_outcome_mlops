@@ -28,3 +28,7 @@ jobs:
           python -c "from project.src.train import train_model"
           python -c "from project.src.evaluate import evaluate_model"
           python -c "from project.src.quality_gate import quality_gate"
+          
+      - name: Build Docker image
+        run: |
+          docker build -t student-mlops-api
