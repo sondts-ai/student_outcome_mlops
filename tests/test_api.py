@@ -1,6 +1,7 @@
 from fastapi.testclient import TestClient
 
 from project.src.api.main import app
+from unittest.mock import patch
 
 
 client = TestClient(app)
@@ -56,11 +57,15 @@ def test_predict():
         "international": 0,
     }
 
-    response = client.post("/predict", json=payload)
+    with patch("project.src.api.main.predict_sample") as mock_predict:
+        mock_predict.return_value = {"prediction": "Graduate"}
+
+        response = client.post("/predict", json=payload)
 
     assert response.status_code == 200
-    assert response.json() is not None
-    
+    assert response.json() == {"prediction": "Graduate"}
+    mock_predict.assert_called_once()
+
 def test_predict_invalid_input():
     payload = {
         "age_at_enrollment": "twenty",
