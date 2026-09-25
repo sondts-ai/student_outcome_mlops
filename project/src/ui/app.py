@@ -4,7 +4,7 @@ import pandas as pd
 import gradio as gr
 
 
-API_URL = "http://127.0.0.1:8005"
+API_URL = "http://api:8005"
 
 
 # =========================================================
@@ -213,5 +213,8 @@ with gr.Blocks(
 # =========================================================
 
 if __name__ == "__main__":
-    app.launch()
+    app.launch(
+        server_name="0.0.0.0",
+        server_port=7860,
+    )
 
