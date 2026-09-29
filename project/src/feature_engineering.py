@@ -12,7 +12,22 @@ ENGINEERED_COLS = [
     "total_approved_units",
     "total_without_evaluation",
 ]
-ENGINEERED_NUMERICAL_COLS = NUMERICAL_COLS + ENGINEERED_COLS
+SELECTED_NUMERICAL_COLS = [
+    "Curricular units 2nd sem (approved)",
+    "Curricular units 2nd sem (grade)",
+    "Curricular units 1st sem (approved)",
+    "Curricular units 1st sem (grade)",
+    "Curricular units 1st sem (evaluations)",
+    "Curricular units 2nd sem (evaluations)",
+    "Age at enrollment",
+    "GDP",
+    "Unemployment rate",
+    "Inflation rate",
+    "Curricular units 1st sem (enrolled)",
+    "Curricular units 2nd sem (enrolled)",
+]
+
+BEST_CV_NUMERIC_COLS = SELECTED_NUMERICAL_COLS + ENGINEERED_COLS
 
 
 def add_engineered_features(data: pd.DataFrame) -> pd.DataFrame:

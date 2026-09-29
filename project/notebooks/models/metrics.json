@@ -1,0 +1,24 @@
+{
+  "model": "RandomForest + Feature Engineering",
+  "experiment": "Exp 07",
+  "representation": "Engineered top 12",
+  "test_metrics": {
+    "Experiment": "Exp 07 final",
+    "Model": "RandomForest + Feature Engineering",
+    "Split": "test",
+    "Accuracy": 0.8036117381489842,
+    "Macro Precision": 0.7584291382852535,          
+    "Macro Recall": 0.708725808850084,
+    "Macro-F1": 0.7189853697113483,
+    "Weighted F1": 0.7862191892333358,
+    "Dropout F1": 0.8256227758007118,
+    "Enrolled F1": 0.448,
+    "Graduate F1": 0.8833333333333333
+  },
+  "random_state": 42,
+  "target_classes": [
+    "Dropout",
+    "Enrolled",
+    "Graduate"
+  ]
+}
