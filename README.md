@@ -1,648 +1,228 @@
-# Student Outcome MLOps
+# Student Outcome Prediction - MLOps System
 
-An end-to-end MLOps project for predicting student outcomes using Machine Learning, DVC, MLflow, Airflow, FastAPI, Docker, and GitHub Actions.
-
-The project predicts one of three student outcomes:
-
-* `Dropout`
-* `Enrolled`
-* `Graduate`
+Dự án triển khai quy trình MLOps đầu cuối (End-to-End MLOps Pipeline) nhằm dự đoán kết quả học tập của sinh viên (Student Outcome / Dropout / Academic Success). Hệ thống tích hợp toàn diện các công cụ chuẩn MLOps: **DVC** quản lý phiên bản dữ liệu/mô hình, **MLflow** theo dõi thí nghiệm, **Apache Airflow** lập lịch và điều phối pipeline, **FastAPI** phục vụ API suy luận, **Streamlit** giao diện người dùng, và đóng gói triển khai bằng **Docker / Docker Compose**.
 
 ---
 
-## 1. Project Overview
+## 1. Kiến trúc Hệ thống (System Architecture)
 
-This project demonstrates a complete machine learning workflow from data validation and model training to model evaluation, quality control, API serving, UI demonstration, containerization, and CI.
-
-### Main workflow
-
-```text
-                    ┌─────────────────┐
-                    │   Raw Dataset   │
-                    │   dataset.csv   │
-                    └────────┬────────┘
-                             │
-                             ▼
-                    ┌─────────────────┐
-                    │   DVC + MinIO   │
-                    │ Data Versioning │
-                    └────────┬────────┘
-                             │
-                             ▼
-                    ┌─────────────────┐
-                    │     Airflow     │
-                    │   Orchestrator │
-                    └────────┬────────┘
-                             │
-              ┌──────────────┼──────────────┐
-              ▼              ▼              ▼
-        Validate Data     Train Model    Evaluate
-              │              │              │
-              │              ▼              ▼
-              │           MLflow       metrics.json
-              │              │              │
-              └──────────────┴──────────────┘
-                             │
-                             ▼
-                    ┌─────────────────┐
-                    │  Quality Gate   │
-                    │ Macro F1 >= 0.70│
-                    └────────┬────────┘
-                             │
-                             ▼
-                    ┌─────────────────┐
-                    │  Trained Model  │
-                    │ best_model.joblib│
-                    └────────┬────────┘
-                             │
-                             ▼
-                    ┌─────────────────┐
-                    │    FastAPI      │
-                    │   /predict      │
-                    └────────┬────────┘
-                             │
-                             ▼
-                    ┌─────────────────┐
-                    │    Gradio UI    │
-                    └─────────────────┘
-
-              GitHub Actions
-                    │
-        ┌───────────┴───────────┐
-        ▼                       ▼
-   API Tests              Docker Builds
+```
+                                  +---------------------------------------+
+                                  |            Apache Airflow             |
+                                  |     (dags/student_mlops_dag.py)       |
+                                  +-------------------+-------------------+
+                                                      |
+                                                      v Kích hoạt Pipeline
++--------------------+            +---------------------------------------+
+|  Dữ liệu thô (DVC) | ---------> |           DVC Pipeline Execution      |
+|  data/raw/         |            |         (dvc.yaml / dvc repro)        |
++--------------------+            +-------------------+-------------------+
+                                                      |
+                    +---------------------------------+---------------------------------+
+                    |                                 |                                 |
+                    v                                 v                                 v
+          [1. Validate Data]               [2. Preprocess & Feature]             [3. Train Model]
+         (validate_data.py)               (preprocessing, feat_eng)                 (train.py)
+                    |                                 |                                 |
+                    +---------------------------------+---------------------------------+
+                                                      |
+                                                      v
+                                           [4. Model Evaluation]
+                                              (evaluate.py)
+                                                      |
+                                                      +------------------------> [MLflow Tracking Server]
+                                                      |                          - Log Metrics, Params
+                                                      v                          - Model Registry
+                                           [5. Quality Gate]
+                                           (quality_gate.py)
+                                                      |
+                                     (Đạt ngưỡng chất lượng?)
+                                      /                      \
+                                    [Có]                    [Không]
+                                     |                         |
+                                     v                         v
+                           [models/best_model.joblib]     Dừng pipeline & Cảnh báo
+                                     |
+                                     +---------------------------------+
+                                     |                                 |
+                                     v                                 v
+                          +---------------------+           +---------------------+
+                          | FastAPI Backend API | <-------  | gradio UI App    |
+                          | (Port 8000)         |           | (Port 8501)         |
+                          +---------------------+           +---------------------+
 ```
 
----
-
-## 2. Technologies
-
-| Technology       | Purpose                              |
-| ---------------- | ------------------------------------ |
-| Python           | Main programming language            |
-| Scikit-learn     | Machine Learning                     |
-| Random Forest    | Classification model                 |
-| imbalanced-learn | Random Oversampling                  |
-| DVC              | Dataset/model pipeline versioning    |
-| MinIO            | S3-compatible object storage for DVC |
-| MLflow           | Experiment tracking                  |
-| Apache Airflow   | Pipeline orchestration               |
-| FastAPI          | Model serving API                    |
-| Gradio           | User interface                       |
-| Docker           | Containerization                     |
-| GitHub Actions   | Continuous Integration               |
-| Pytest           | API testing                          |
+### Các thành phần chính:
+- **Data & Pipeline Versioning (DVC):** Quản lý phiên bản tập dữ liệu `dataset.csv` và định nghĩa pipeline tự động qua `dvc.yaml` (`validate` -> `preprocess` -> `feature_engineering` -> `train` -> `evaluate` -> `quality_gate`).
+- **Experiment Tracking (MLflow):** Ghi lại siêu tham số (hyperparameters), độ đo đánh giá (Accuracy, F1-Score, ROC-AUC), và lưu trữ artifact mô hình qua từng lần chạy.
+- **Workflow Orchestration (Airflow):** Tự động hóa việc kích hoạt, theo dõi pipeline huấn luyện định kỳ hoặc theo sự kiện dữ liệu mới.
+- **Serving & UI Layer:**
+  - **FastAPI (`project/src/api/`):** API chuẩn hóa bằng Pydantic schemas, cung cấp endpoint `/predict` và `/health`.
+  - **Streamlit (`project/src/ui/app.py`):** Giao diện tương tác cho người dùng nhập thông tin và nhận kết quả dự đoán trực quan.
+- **Containerization (Docker Compose):** Đóng gói toàn bộ dịch vụ (Airflow, MLflow, FastAPI, Streamlit) trong các container độc lập.
 
 ---
 
-## 3. Project Structure
+## 2. Cấu trúc Thư mục
 
 ```text
-student-success-mlops/
-│
-├── .github/
-│   └── workflows/
-│       └── ci.yml
-│
-├── data/
-│   └── raw/
-│       ├── dataset.csv
-│       └── dataset.csv.dvc
-│
-├── models/
-│   └── best_model.joblib
-│
-├── reports/
-│   └── metrics.json
-│
-├── project/
-│   └── src/
-│       ├── train.py
-│       ├── evaluate.py
-│       ├── predict.py
-│       ├── validate_data.py
-│       ├── quality_gate.py
-│       ├── data_preprocessing.py
-│       ├── feature_engineering.py
-│       ├── run_pipeline.py
-│       │
-│       ├── api/
-│       │   ├── main.py
-│       │   └── schemas.py
-│       │
-│       └── ui/
-│           └── app.py
-│
+student_outcome_mlops/
+├── .github/workflows/ci.yml       # CI/CD pipeline tự động test & lint
+├── .dvc/                          # Cấu hình DVC tracking
 ├── dags/
-│   └── student_mlops_dag.py
-│
-├── tests/
-│   └── test_api.py
-│
-├── Dockerfile
-├── dockerfile.ui
-├── docker-compose.yml
-├── requirements.txt
-└── README.md
+│   └── student_mlops_dag.py       # DAG Airflow điều phối luồng MLOps
+├── data/
+│   └── raw/                       # Chứa dữ liệu gốc và file metadata .dvc
+├── models/                        # Chứa model xuất bản và metrics
+├── project/
+│   ├── notebooks/                 # EDA & thực nghiệm baseline ban đầu
+│   └── src/                       # Mã nguồn pipeline MLOps
+│       ├── api/                   # FastAPI service (main.py, schemas.py)
+│       ├── ui/                    # Streamlit frontend (app.py)
+│       ├── validate_data.py       # Kiểm định dữ liệu
+│       ├── data_preprocessing.py  # Xử lý dữ liệu
+│       ├── feature_engineering.py # Trích xuất và biến đổi đặc trưng
+│       ├── train.py               # Huấn luyện mô hình & log MLflow
+│       ├── evaluate.py            # Đánh giá hiệu năng mô hình
+│       ├── quality_gate.py        # Kiểm duyệt ngưỡng chất lượng trước khi release
+│       └── run_pipeline.py        # Script chạy toàn bộ pipeline
+├── tests/                         # Unit tests và API tests
+├── Dockerfile                     # Image cho FastAPI API & Training
+├── dockerfile.ui                  # Image cho Streamlit UI
+├── docker-compose.yml             # Điều phối các services
+├── dvc.yaml & dvc.lock            # Định nghĩa các stage của DVC pipeline
+└── requirements.txt               # Danh sách thư viện Python phụ thuộc
 ```
 
 ---
 
-## 4. Machine Learning
+## 3. Cài đặt Môi trường Cục bộ (Local Setup)
 
-The project uses a tuned `RandomForestClassifier`.
-
-### Model configuration
-
-```text
-n_estimators = 700
-criterion = entropy
-max_depth = None
-min_samples_split = 2
-min_samples_leaf = 2
-max_features = 0.5
-class_weight = balanced
-random_state = 42
-n_jobs = -1
-```
-
-The training pipeline includes feature engineering and `RandomOverSampler`.
-
-### Dataset split
-
-```text
-Training samples: 3539
-Test samples:      885
-```
-
-Target classes:
-
-```text
-Dropout
-Enrolled
-Graduate
-```
-
----
-
-## 5. Model Evaluation
-
-Current evaluation results:
-
-| Class            |  Precision |     Recall |   F1-score |
-| ---------------- | ---------: | ---------: | ---------: |
-| Dropout          |     0.8487 |     0.7113 |     0.7739 |
-| Enrolled         |     0.4859 |     0.5409 |     0.5119 |
-| Graduate         |     0.8298 |     0.8824 |     0.8553 |
-| **Macro Avg**    | **0.7215** | **0.7115** | **0.7137** |
-| **Weighted Avg** |            |            | **0.7675** |
-
-Accuracy:
-
-```text
-0.7661
-```
-
-The quality gate uses Macro F1:
-
-```text
-Minimum Macro F1 = 0.70
-```
-
-The model passes the current quality threshold with:
-
-```text
-Macro F1 = 0.7137
-```
-
----
-
-## 6. DVC and MinIO
-
-DVC is used to version the dataset and manage data dependencies.
-
-The dataset is tracked using:
-
-```text
-data/raw/dataset.csv.dvc
-```
-
-The DVC remote uses MinIO:
-
-```text
-s3://mlops-data/dvc
-```
-
-MinIO provides S3-compatible object storage for the local MLOps environment.
-
-The important distinction is:
-
-```text
-Git
- └── tracks metadata/pointers
-
-DVC
- └── tracks data/model artifacts
-
-MinIO
- └── stores the actual DVC artifacts
-```
-
-The dataset itself is not committed directly to Git.
-
----
-
-## 7. MLflow
-
-MLflow is used for experiment tracking.
-
-The project records:
-
-* Model parameters
-* Classification metrics
-* Accuracy
-* Macro F1
-* Weighted F1
-* Per-class precision
-* Per-class recall
-* Per-class F1
-* Evaluation metrics artifact
-* Trained model
-
-Experiment:
-
-```text
-MLflow Quickstart
-```
-
----
-
-## 8. Airflow Pipeline
-
-Apache Airflow orchestrates the machine learning workflow.
-
-The DAG is:
-
-```text
-validate_data
-      ↓
-    train
-      ↓
-  evaluate
-      ↓
- quality_gate
-```
-
-The DAG file is:
-
-```text
-dags/student_mlops_dag.py
-```
-
-The pipeline is manually triggered through Airflow.
-
-Airflow is currently run locally in WSL rather than inside Docker.
-
----
-
-## 9. Quality Gate
-
-The quality gate prevents a model from being considered valid when its Macro F1 is below the required threshold.
-
-```text
-metrics.json
-      │
-      ▼
-Read Macro F1
-      │
-      ▼
-Macro F1 >= 0.70 ?
-   │           │
-  YES          NO
-   │           │
- PASS         FAIL
-```
-
-Current threshold:
-
-```python
-MIN_F1 = 0.70
-```
-
----
-
-## 10. FastAPI
-
-The trained model is served through FastAPI.
-
-API:
-
-```text
-http://localhost:8005
-```
-
-### Health check
-
-```http
-GET /health
-```
-
-Example response:
-
-```json
-{
-  "status": "ok"
-}
-```
-
-### Prediction
-
-```http
-POST /predict
-```
-
-The endpoint accepts student information defined by the `StudentInput` schema and returns a prediction from the trained model.
-
-FastAPI automatically provides interactive API documentation at:
-
-```text
-/docs
-```
-
----
-
-## 11. Gradio UI
-
-A Gradio interface is provided for interacting with the prediction API.
-
-The UI communicates with the API through the Docker Compose service name:
-
-```text
-http://api:8005
-```
-
-The UI is exposed on:
-
-```text
-http://localhost:7860
-```
-
----
-
-## 12. Docker
-
-The project uses Docker Compose to run:
-
-```text
-┌───────────────┐
-│     MinIO     │
-│   :9000/:9001 │
-└───────────────┘
-
-┌───────────────┐
-│    FastAPI    │
-│     :8005     │
-└───────┬───────┘
-        │
-        ▼
-┌───────────────┐
-│    Gradio     │
-│     :7860     │
-└───────────────┘
-```
-
-Start the services:
-
+### Bước 1: Clone dự án và tạo môi trường ảo
 ```bash
-docker compose up --build
+git clone <repository_url>
+cd student_outcome_mlops
+
+# Tạo và kích hoạt môi trường ảo Python (khuyến nghị Python 3.10)
+python -m venv venv
+source venv/bin/activate  # Trên Linux/macOS
+# venv\Scripts\activate   # Trên Windows
 ```
 
-Run in background:
-
+### Bước 2: Cài đặt các thư viện cần thiết
 ```bash
+pip install --upgrade pip
+pip install -r requirements.txt
+```
+
+---
+
+## 4. Quản lý Dữ liệu và Pipeline với DVC
+
+### Kéo dữ liệu từ remote storage (hoặc kiểm tra dữ liệu hiện tại):
+```bash
+# Kéo dữ liệu thô đã được track bởi DVC
+dvc pull
+
+# Hoặc nếu bạn thêm tập dữ liệu mới:
+dvc add data/raw/dataset.csv
+git add data/raw/dataset.csv.dvc data/raw/.gitignore
+git commit -m "chore: update raw dataset"
+```
+
+### Chạy và tái lập Pipeline với DVC:
+Pipeline được định nghĩa trong `dvc.yaml`. Để chạy lại toàn bộ hoặc các bước có thay đổi:
+```bash
+# Thực thi toàn bộ pipeline theo phụ thuộc
+dvc repro
+
+# Xem biểu đồ phụ thuộc của pipeline
+dvc dag
+
+# Xem metrics sau khi chạy pipeline
+dvc metrics show
+```
+
+---
+
+## 5. Theo dõi Thí nghiệm với MLflow
+
+### Chạy MLflow Tracking Server cục bộ:
+Khởi động máy chủ MLflow để theo dõi metrics, hyperparameters và artifacts:
+```bash
+mlflow server \
+    --backend-store-uri sqlite:///mlflow.db \
+    --default-artifact-root ./mlruns \
+    --host 0.0.0.0 \
+    --port 5000
+```
+Truy cập giao diện Web của MLflow tại: **`http://localhost:5000`**
+
+### Cấu hình biến môi trường trước khi chạy Train:
+```bash
+export MLFLOW_TRACKING_URI=http://localhost:5000
+python project/src/run_pipeline.py
+```
+
+---
+
+## 6. Điều phối Luồng Tự động với Apache Airflow
+
+DAG điều phối được đặt tại `dags/student_mlops_dag.py`.
+
+### Khởi động Airflow cục bộ (Chế độ Standalone):
+```bash
+# Thiết lập thư mục làm việc cho Airflow
+export AIRFLOW_HOME=$(pwd)/airflow
+
+# Khởi tạo DB và chạy Airflow Standalone
+airflow standalone
+```
+*Truy cập giao diện Airflow tại: **`http://localhost:8080`*** (Tài khoản và mật khẩu hiển thị tại terminal trong lần đầu khởi tạo).
+
+Sau khi đăng nhập:
+1. Tìm DAG có tên `student_mlops_pipeline` (hoặc tên DAG định nghĩa trong `dags/student_mlops_dag.py`).
+2. Bật toggle **`Unpause`** và nhấn **`Trigger DAG`** để kích hoạt pipeline huấn luyện tự động.
+
+---
+
+## 7. Chạy Ứng dụng bằng Docker Compose (Khuyến nghị)
+
+Để chạy toàn bộ hệ thống gồm API, Web UI, MLflow và Airflow một cách đồng bộ mà không cần cài đặt nhiều môi trường thủ công:
+
+### Bước 1: Build và khởi động các container
+```bash
+# Khởi chạy toàn bộ hệ sinh thái
 docker compose up --build -d
 ```
 
-Stop the services:
+### Bước 2: Kiểm tra trạng thái các container
+```bash
+docker compose ps
+```
 
+### Bước 3: Danh sách các cổng dịch vụ
+
+| Dịch vụ | Địa chỉ truy cập | Mô tả |
+| :--- | :--- | :--- |
+| **gradio UI** | [http://localhost:8501](http://localhost:8501) | Giao diện dự đoán kết quả học tập |
+| **FastAPI Docs** | [http://localhost:8000/docs](http://localhost:8000/docs) | Swagger UI kiểm thử API dự đoán |
+| **MLflow UI** | [http://localhost:5000](http://localhost:5000) | Bảng điều khiển quản lý mô hình & metric |
+| **Apache Airflow** | [http://localhost:8080](http://localhost:8080) | Giao diện điều phối và lập lịch DAG |
+
+### Bước 4: Tắt hệ thống
 ```bash
 docker compose down
 ```
 
 ---
 
-## 13. Running the Project Locally
+## 8. Kiểm thử (Testing) & CI/CD
 
-### 13.1 Clone repository
+Dự án đi kèm bộ unit test cho pipeline và API phục vụ cho quy trình tích hợp liên tục (CI) qua GitHub Actions (`.github/workflows/ci.yml`).
 
+Chạy test thủ công:
 ```bash
-git clone https://github.com/sondts-ai/student_outcome_mlops.git
-cd student_outcome_mlops
+# Chạy toàn bộ test suites
+pytest tests/ -v
 ```
-
-### 13.2 Install dependencies
-
-Create and activate a Python environment, then:
-
-```bash
-pip install -r requirements.txt
-```
-
----
-
-### 13.3 Run the ML pipeline
-
-The main pipeline can be executed through:
-
-```bash
-python -m project.src.run_pipeline
-```
-
-The individual components are also available:
-
-```bash
-python -m project.src.validate_data
-python -m project.src.train
-python -m project.src.evaluate
-python -m project.src.quality_gate
-```
-
----
-
-## 14. Running Airflow
-
-The Airflow DAG is located at:
-
-```text
-dags/student_mlops_dag.py
-```
-
-DAG:
-
-```text
-student_mlops
-```
-
-Pipeline:
-
-```text
-Validate Data
-      ↓
-Train
-      ↓
-Evaluate
-      ↓
-Quality Gate
-```
-
----
-
-## 15. Running the API
-
-Start FastAPI directly:
-
-```bash
-uvicorn project.src.api.main:app --host 0.0.0.0 --port 8005
-```
-
-Then open:
-
-```text
-http://localhost:8005/docs
-```
-
----
-
-## 16. Running Tests
-
-API tests use Pytest.
-
-Run:
-
-```bash
-PYTHONPATH=. pytest tests/test_api.py -v
-```
-
-The tests cover:
-
-* Health endpoint
-* Prediction endpoint
-* Invalid input validation
-
-The prediction API test mocks the model prediction function, so the API unit test does not require the trained model artifact to be available in the GitHub Actions runner.
-
----
-
-## 17. Continuous Integration
-
-GitHub Actions is used for CI.
-
-The workflow is located at:
-
-```text
-.github/workflows/ci.yml
-```
-
-Current CI pipeline:
-
-```text
-Checkout repository
-        ↓
-Install dependencies
-        ↓
-Test imports
-        ↓
-Run API tests
-        ↓
-Build API Docker image
-        ↓
-Build UI Docker image
-```
-
-The CI pipeline does not train the model or pull data from the local MinIO server.
-
-This is intentional because the current DVC remote is a local MinIO instance and is not accessible from the GitHub-hosted runner.
-
----
-
-## 18. MLOps Architecture
-
-The overall system can be summarized as:
-
-```text
-                    DATA
-                     │
-                     ▼
-              ┌─────────────┐
-              │ DVC + MinIO │
-              └──────┬──────┘
-                     │
-                     ▼
-                ┌─────────┐
-                │ Airflow │
-                └────┬────┘
-                     │
-          ┌──────────┼──────────┐
-          ▼          ▼          ▼
-       Validate    Train     Evaluate
-                     │          │
-                     ▼          ▼
-                  MLflow    metrics.json
-                     │          │
-                     └────┬─────┘
-                          ▼
-                    Quality Gate
-                          │
-                          ▼
-                   Model Artifact
-                          │
-                          ▼
-                       FastAPI
-                          │
-                          ▼
-                      Gradio UI
-
-                GitHub Actions
-                       │
-              ┌────────┴────────┐
-              ▼                 ▼
-          API Tests        Docker Build
-```
-
----
-
-## 19. Key MLOps Concepts Demonstrated
-
-This project demonstrates the following concepts:
-
-* Data versioning with DVC
-* Object storage with MinIO
-* Machine learning experiment tracking with MLflow
-* Pipeline orchestration with Airflow
-* Model evaluation
-* Automated quality gates
-* Model serving with FastAPI
-* Interactive ML UI with Gradio
-* Containerization with Docker
-* API testing with Pytest
-* Continuous Integration with GitHub Actions
-
----
-
-## 20. Project Status
-
-| Component         | Status |
-| ----------------- | ------ |
-| Machine Learning  | ✅      |
-| DVC               | ✅      |
-| MinIO             | ✅      |
-| MLflow            | ✅      |
-| Airflow           | ✅      |
-| Quality Gate      | ✅      |
-| FastAPI           | ✅      |
-| Gradio UI         | ✅      |
-| Docker            | ✅      |
-| API Tests         | ✅      |
-| GitHub Actions CI | ✅      |
-
-The project currently focuses on the **MLOps workflow and CI**, while deployment/CD is outside the current scope.
