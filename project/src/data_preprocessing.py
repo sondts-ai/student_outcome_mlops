@@ -1,9 +1,12 @@
+
 from pathlib import Path
 
 import pandas as pd
 
 from sklearn.compose import ColumnTransformer
+from sklearn.impute import SimpleImputer
 from sklearn.model_selection import train_test_split
+from sklearn.pipeline import Pipeline
 from sklearn.preprocessing import LabelEncoder, OneHotEncoder
 
 
@@ -61,9 +64,7 @@ def load_dataset(path: str | Path) -> pd.DataFrame:
 
     data = pd.read_csv(path)
 
-    expected = set(
-        NUMERICAL_COLS + CATEGORICAL_COLS + [TARGET]
-    )
+    expected = set(NUMERICAL_COLS + CATEGORICAL_COLS + [TARGET])
 
     if set(data.columns) != expected:
         raise ValueError(
@@ -74,8 +75,9 @@ def load_dataset(path: str | Path) -> pd.DataFrame:
 
 
 def split_dataset(data: pd.DataFrame):
-    label_encoder = LabelEncoder()
+    """Encode target and split into training and test sets."""
 
+    label_encoder = LabelEncoder()
     y = label_encoder.fit_transform(data[TARGET])
 
     if list(label_encoder.classes_) != CLASS_NAMES:
@@ -93,25 +95,34 @@ def split_dataset(data: pd.DataFrame):
         stratify=y,
     )
 
+
 def make_preprocessor(selected_numeric_cols=None):
- 
+    """Build preprocessing pipeline for numeric and categorical features."""
+
     selected_numeric_cols = (
         selected_numeric_cols
         if selected_numeric_cols is not None
         else NUMERICAL_COLS
     )
 
-    return ColumnTransformer(
-        [
-            (
-                "num",
-                "passthrough",
-                selected_numeric_cols,
-            ),
-            (
-                "cat",
-                OneHotEncoder(handle_unknown="ignore"),
-                CATEGORICAL_COLS,
-            ),
-        ]
-    )
+    numeric_pipeline = Pipeline([
+        ("imputer", SimpleImputer(strategy="median")),
+    ])
+
+    categorical_pipeline = Pipeline([
+        ("imputer", SimpleImputer(strategy="most_frequent")),
+        ("onehot", OneHotEncoder(handle_unknown="ignore")),
+    ])
+
+    return ColumnTransformer([
+        (
+            "num",
+            numeric_pipeline,
+            selected_numeric_cols,
+        ),
+        (
+            "cat",
+            categorical_pipeline,
+            CATEGORICAL_COLS,
+        ),
+    ])
