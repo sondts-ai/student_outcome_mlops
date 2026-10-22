@@ -1,4 +1,8 @@
 [core]
-    remote = minio
+    remote = r2_remote
 ['remote "minio"']
     url = s3://mlops-data/dvc
+['remote "r2_remote"']
+    url = s3://hetrogiupqd/dvc
+    endpointurl = https://30ada6cc3635beb55db8b9662382dd58.r2.cloudflarestorage.com
+    region = auto
