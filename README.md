@@ -1,280 +1,419 @@
-# 🎓 Student Outcome Prediction - MLOps System
+# Student Outcome Prediction — MLOps System
 
-Dự án triển khai quy trình MLOps đầu-cuối (End-to-End MLOps Pipeline) cho bài toán dự đoán kết quả học tập của sinh viên (Student Outcome: Dropout / Enrolled / Graduate). Hệ thống tích hợp toàn diện từ quản lý phiên bản dữ liệu/mô hình (DVC), tự động hóa kiểm thử và triển khai liên tục (GitHub Actions CI/CD), quản lý thí nghiệm (MLflow), điều phối pipeline (Apache Airflow), cho đến đóng gói container (Docker) và phục vụ người dùng thông qua FastAPI kết hợp Gradio UI.
+Hệ thống dự đoán kết quả học tập của sinh viên theo ba nhóm: **Dropout (bỏ học), Enrolled (đang học) và Graduate (tốt nghiệp)**. Dự án xây dựng quy trình Machine Learning kết hợp các công cụ MLOps nhằm quản lý dữ liệu, huấn luyện mô hình, đánh giá kết quả, theo dõi thí nghiệm và triển khai mô hình dưới dạng API.
 
----
+## 1. Mục tiêu dự án
 
-## 🏗️ 1. Kiến trúc Hệ thống (System Architecture)
+- Xây dựng pipeline Machine Learning có thể tái chạy.
+- Quản lý dữ liệu và các artifact bằng DVC.
+- Lưu trữ dữ liệu trên Cloudflare R2.
+- Theo dõi quá trình huấn luyện và các chỉ số mô hình bằng MLflow.
+- Điều phối pipeline bằng Apache Airflow.
+- Xây dựng API dự đoán bằng FastAPI.
+- Xây dựng giao diện dự đoán bằng Gradio.
+- Tích hợp kiểm thử và CI/CD bằng GitHub Actions.
+- Đóng gói ứng dụng bằng Docker.
 
+## 2. Công nghệ sử dụng
+
+| Công nghệ | Vai trò |
+|---|---|
+| Python | Ngôn ngữ chính |
+| Pandas, NumPy | Xử lý dữ liệu |
+| Scikit-learn | Huấn luyện và đánh giá mô hình |
+| Imbalanced-learn | Xử lý mất cân bằng dữ liệu khi cần |
+| DVC | Quản lý phiên bản dữ liệu và pipeline |
+| Cloudflare R2 | Lưu trữ dữ liệu và artifact trên cloud |
+| MLflow | Theo dõi thí nghiệm Machine Learning |
+| Apache Airflow | Điều phối pipeline |
+| FastAPI | Xây dựng API dự đoán |
+| Gradio | Giao diện người dùng |
+| Pytest | Kiểm thử |
+| GitHub Actions | Tự động hóa kiểm thử và CI/CD |
+| Docker | Đóng gói và triển khai ứng dụng |
+
+## 3. Kiến trúc tổng quan
+
+```text
+                 Dataset
+                    |
+                    v
+           Cloudflare R2 / DVC
+                    |
+                    v
+             Data Processing
+                    |
+                    v
+            Feature Engineering
+                    |
+                    v
+              Model Training
+                    |
+                    v
+             Model Evaluation
+                    |
+                    v
+              Saved Model
+                    |
+          +---------+---------+
+          |                   |
+          v                   v
+      FastAPI API         Gradio UI
+
+Apache Airflow: điều phối các bước của pipeline
+MLflow: theo dõi thí nghiệm, tham số và metrics
+GitHub Actions: tự động kiểm thử và kiểm tra chất lượng
+Docker: đóng gói các thành phần triển khai
 ```
-                                +-----------------------------------+
-                                |        Developer / Git Repo       |
-                                +-----------------+-----------------+
-                                                  |
-                                                  v (git push / PR)
-                                +-----------------------------------+
-                                |     CI/CD: GitHub Actions         |
-                                | - Linting & Code Style Checks     |
-                                | - Pytest Unit / API Testing       |
-                                | - Model Quality Gate Inspection   |
-                                | - Docker Images Build & Push      |
-                                +-----------------+-----------------+
-                                                  |
-                                                  v (Kích hoạt điều phối)
-+-----------------------------------------------------------------------------------+
-|                        MLOps Orchestration & Experiment Layer                     |
-|                                                                                   |
-|  [DVC: Data & Pipeline Versioning]                                                |
-|   └── dataset.csv.dvc -> Validation -> Preprocessing -> Feature Eng -> Train      |
-|                                                                                   |
-|  [Apache Airflow: Workflow Orchestration]                                         |
-|   └── dags/student_mlops_dag.py (Lập lịch kiểm định, huấn luyện & Quality Gate)   |
-|                                                                                   |
-|  [MLflow: Tracking & Model Registry]                                              |
-|   └── Ghi log Parameters, Metrics (Accuracy, F1), Artifacts & Quản lý Best Model  |
-+-------------------------------------------------+---------------------------------+
-                                                  |
-                                                  v (Artifacts: best_model.joblib)
-+-----------------------------------------------------------------------------------+
-|                     Triển khai Dịch vụ (Docker & Docker Compose)                  |
-|                                                                                   |
-|      +------------------------------+         +------------------------------+    |
-|      |    FastAPI Backend           | <====== |    Gradio Web UI Frontend    |    |
-|      |    - Endpoint: /predict      |  REST   |    - Interactive Inputs      |    |
-|      |    - Port: 8000              |   API   |    - Port: 7860              |    |
-|      +------------------------------+         +------------------------------+    |
-+-----------------------------------------------------------------------------------+
-```
 
-### Các thành phần chính:
-1. **GitHub Actions (CI/CD)**: Tự động chạy kiểm thử đơn vị (`pytest tests/`), kiểm tra cú pháp code, rà soát ngưỡng chất lượng mô hình (Quality Gate) và build image khi có thay đổi trong repository.
-2. **DVC (Data Version Control)**: Quản lý phiên bản dữ liệu thô lớn (`data/raw/dataset.csv.dvc`) và duy trì đường ống xử lý nhiều giai đoạn thông qua file cấu hình `dvc.yaml` & `dvc.lock`.
-3. **MLflow Tracking**: Theo dõi lịch sử huấn luyện, các siêu tham số, bảng chỉ số đánh giá (accuracy, precision, recall, f1-score) và lưu trữ artifacts mô hình.
-4. **Apache Airflow**: Lập lịch trình và tự động kích hoạt workflow huấn luyện lại mô hình theo chu kỳ hoặc sự kiện dữ liệu mới (`student_mlops_dag.py`).
-5. **FastAPI & Gradio**: 
-   - **FastAPI**: REST API hiệu năng cao với Pydantic schema validation phục vụ suy luận (`/predict`).
-   - **Gradio**: Giao diện web trực quan, thân thiện cho phép nhập thông tin sinh viên và hiển thị kết quả dự đoán ngay lập tức.
-6. **Docker & Docker Compose**: Đóng gói cô lập các dịch vụ, đảm bảo tính nhất quán giữa môi trường phát triển và môi trường triển khai thực tế.
+Sơ đồ trên mô tả vai trò dự kiến của các thành phần. Các bước thực tế được điều phối và triển khai theo mã nguồn trong repository.
 
----
-
-## 📁 2. Cấu trúc Thư mục
+## 4. Cấu trúc dự án
 
 ```text
 student_outcome_mlops/
-├── .dvc/                        # Cấu hình DVC nội bộ
 ├── .github/
 │   └── workflows/
-│       └── ci.yml               # Pipeline tự động kiểm thử và build CI/CD
+│       └── ci.yml
 ├── dags/
-│   └── student_mlops_dag.py     # DAG Airflow điều phối luồng MLOps
+│   └── student_mlops_dag.py
 ├── data/
 │   └── raw/
-│       ├── dataset.csv.dvc      # Tracking tập dữ liệu gốc bằng DVC
-│       └── .gitignore
-├── models/                      # Chứa artifact mô hình xuất xưởng và metrics.json
+│       └── dataset.csv.dvc
+├── models/
+├── reports/
+├── scripts/
+│   └── download_data.py
 ├── project/
-│   ├── notebooks/               # Notebooks EDA và thí nghiệm mô hình baseline
+│   ├── notebooks/
 │   └── src/
-│       ├── api/                 # Mã nguồn FastAPI service (main.py, schemas.py)
-│       ├── ui/                  # Giao diện Gradio Web UI (app.py)
-│       ├── validate_data.py     # Kiểm tra tính toàn vẹn và schema dữ liệu
-│       ├── data_preprocessing.py# Tiền xử lý dữ liệu
-│       ├── feature_engineering.py# Trích xuất và chuẩn hóa đặc trưng
-│       ├── train.py             # Huấn luyện mô hình và tích hợp log MLflow
-│       ├── evaluate.py          # Đánh giá hiệu năng mô hình
-│       ├── quality_gate.py      # Kiểm tra điều kiện chất lượng trước khi release
-│       ├── predict.py           # Logic load model và suy luận kết quả
-│       └── run_pipeline.py      # Script chạy tuần tự toàn bộ pipeline cục bộ
+│       ├── api/
+│       │   ├── main.py
+│       │   └── schemas.py
+│       ├── ui/
+│       │   └── app.py
+│       ├── validate_data.py
+│       ├── data_preprocessing.py
+│       ├── feature_engineering.py
+│       ├── train.py
+│       ├── evaluate.py
+│       ├── quality_gate.py
+│       ├── predict.py
+│       └── run_pipeline.py
 ├── tests/
-│   └── test_api.py              # Test cases kiểm thử API
-├── Dockerfile                   # Dockerfile cho FastAPI API service
-├── dockerfile.ui                # Dockerfile cho Gradio UI service
-├── docker-compose.yml           # Khởi chạy cụm dịch vụ FastAPI và Gradio
-├── dvc.yaml                     # Định nghĩa các stage của DVC pipeline
-├── dvc.lock                     # Khóa trạng thái các stage pipeline
-└── requirements.txt             # Danh sách thư viện Python phụ thuộc
+│   └── test_api.py
+├── .dvc/
+│   └── config
+├── Dockerfile
+├── dockerfile.ui
+├── docker-compose.yml
+├── dvc.yaml
+├── dvc.lock
+├── requirements.txt
+├── requirements-airflow.txt
+└── README.md
 ```
 
----
+Lưu ý: cấu trúc trên là cấu trúc tham chiếu. Một số file hoặc thư mục có thể khác với phiên bản hiện tại của repository; hãy đối chiếu trước khi sử dụng các lệnh bên dưới.
 
-## ⚙️ 3. Cài đặt Môi trường Cục bộ (Local Setup)
+## 5. Yêu cầu môi trường
 
-### Yêu cầu tiên quyết:
-- Python 3.10 trở lên
-- Git & Git CLI
-- Docker & Docker Compose
+- Git
+- Python 3.12.11 cho môi trường hiện tại của dự án
+- pip và virtual environment
+- DVC
+- Tài khoản Cloudflare R2 chỉ cần thiết nếu muốn cấu hình remote riêng tư hoặc tải dữ liệu theo cơ chế xác thực
+- Apache Airflow 3.3.2 cho môi trường Airflow hiện tại
+- Docker và Docker Compose nếu muốn chạy các dịch vụ bằng Docker
 
-### Các bước cài đặt:
+Phiên bản Python 3.12.11 và Airflow 3.3.2 là phiên bản môi trường đang được sử dụng để phát triển; các môi trường khác cần được kiểm thử tương thích.
+
+## 6. Cài đặt dự án
+
+### Bước 1: Clone repository
+
 ```bash
-# 1. Clone repository
 git clone https://github.com/sondts-ai/student_outcome_mlops.git
 cd student_outcome_mlops
+```
 
-# 2. Tạo và kích hoạt môi trường ảo
-python -m venv venv
+### Bước 2: Tạo môi trường Python
 
-# Trên Linux / macOS:
-source venv/bin/activate
-# Trên Windows:
-venv\Scripts\activate
+Linux, macOS hoặc WSL:
 
-# 3. Cài đặt toàn bộ thư viện phụ thuộc
-pip install --upgrade pip
+```bash
+python3 -m venv .venv
+source .venv/bin/activate
+```
+
+Windows PowerShell:
+
+```powershell
+python -m venv .venv
+.venv\Scripts\Activate.ps1
+```
+
+### Bước 3: Cài đặt thư viện
+
+```bash
+python -m pip install --upgrade pip
 pip install -r requirements.txt
 ```
 
----
+File `requirements.txt` chứa các thư viện chính phục vụ xử lý dữ liệu, huấn luyện mô hình, DVC, MLflow, API và kiểm thử.
 
-## 🔄 4. Hướng dẫn Chạy Từng Thành phần
+### Bước 4: Chuẩn bị dữ liệu
 
-### 4.1. Quản lý Dữ liệu và Pipeline với DVC
-DVC quản lý các bước tiền xử lý, trích xuất đặc trưng và huấn luyện mô hình thông qua file `dvc.yaml`:
+Dữ liệu được quản lý bằng DVC và lưu trên Cloudflare R2.
+
+Nếu sử dụng script tải dữ liệu công khai:
 
 ```bash
-# Kéo dữ liệu đã được track (nếu có cấu hình remote storage)
-dvc pull
+python scripts/download_data.py
+```
 
-# Thực thi toàn bộ pipeline theo thứ tự phụ thuộc
+Script sẽ tải dataset vào `data/raw/dataset.csv` và kiểm tra MD5 để xác nhận tính toàn vẹn của file.
+
+Nếu dataset đã có sẵn ở đúng đường dẫn, có thể bỏ qua bước này.
+
+**Lưu ý về quyền truy cập:** URL công khai cho phép người dùng tải dữ liệu mà không cần API key. Không đưa Access Key hoặc Secret Access Key của Cloudflare R2 vào repository. Nếu cần dùng DVC trực tiếp với remote riêng tư, hãy cấu hình thông tin xác thực cục bộ theo hướng dẫn của DVC.
+
+## 7. Quản lý dữ liệu và pipeline bằng DVC
+
+### Kiểm tra trạng thái
+
+```bash
+dvc status
+```
+
+### Xem sơ đồ pipeline
+
+```bash
+dvc dag
+```
+
+### Chạy lại pipeline
+
+```bash
 dvc repro
+```
 
-# Kiểm tra sự thay đổi của metrics sau khi huấn luyện
+Pipeline hiện được khai báo trong `dvc.yaml` với hai stage:
+
+**Train**
+
+```yaml
+train:
+  cmd: python -m project.src.train
+  deps:
+    - project/src/train.py
+    - project/src/data_preprocessing.py
+    - project/src/feature_engineering.py
+    - data/raw/dataset.csv
+  outs:
+    - models/best_model.joblib
+```
+
+**Evaluate**
+
+```yaml
+evaluate:
+  cmd: python -m project.src.evaluate
+  deps:
+    - project/src/evaluate.py
+    - project/src/data_preprocessing.py
+    - project/src/feature_engineering.py
+    - data/raw/dataset.csv
+    - models/best_model.joblib
+  metrics:
+    - reports/metrics.json
+```
+
+Stage `train` tạo model tại `models/best_model.joblib`. Stage `evaluate` sử dụng model đó để đánh giá và ghi metrics vào `reports/metrics.json`.
+
+Các đường dẫn và đầu ra cần khớp với code thực tế của hai module.
+
+### Xem metrics
+
+```bash
 dvc metrics show
 dvc metrics diff
 ```
 
-### 4.2. Theo dõi Thí nghiệm với MLflow
-Mã nguồn trong `project/src/train.py` đã tích hợp theo dõi tham số và metric vào MLflow:
+## 8. Theo dõi thí nghiệm bằng MLflow
+
+MLflow được sử dụng để theo dõi các thí nghiệm Machine Learning, chẳng hạn như tham số huấn luyện, metrics đánh giá và thông tin model nếu mã nguồn có ghi log các thành phần này.
+
+Khởi chạy giao diện MLflow:
 
 ```bash
-# Khởi động MLflow UI Server cục bộ
-mlflow ui --port 5000
+mlflow ui --host 127.0.0.1 --port 5000
 ```
-👉 Truy cập giao diện trực quan tại: **`http://localhost:5000`** để xem biểu đồ loss/accuracy, các tham số và artifact mô hình.
 
-### 4.3. Tự động hóa CI/CD với GitHub Actions
-Quy trình CI/CD được định nghĩa tại `.github/workflows/ci.yml`. Khi bạn tạo commit hoặc mở Pull Request:
-1. GitHub Actions sẽ tự động khởi tạo môi trường Python và cài đặt `requirements.txt`.
-2. Chạy linter kiểm tra chuẩn mã nguồn.
-3. Chạy toàn bộ test suites tự động:
-   ```bash
-   # Lệnh chạy kiểm thử cục bộ:
-   pytest tests/test_api.py -v
-   ```
-4. Kiểm tra điều kiện chất lượng mô hình qua bước `quality_gate.py`.
+Mở trình duyệt tại:
 
-### 4.4. Điều phối Quy trình với Apache Airflow
-File DAG `dags/student_mlops_dag.py` tự động hóa các tác vụ huấn luyện định kỳ:
-
-```bash
-# Cấu hình thư mục làm việc cho Airflow
-export AIRFLOW_HOME=$(pwd)/airflow
-
-# Khởi tạo cơ sở dữ liệu Airflow
-airflow db init
-
-# Tạo tài khoản quản trị Admin
-airflow users create \
-    --username admin \
-    --firstname Admin \
-    --lastname User \
-    --role Admin \
-    --email admin@example.com \
-    --password admin
-
-# Khởi chạy Scheduler và Webserver
-airflow scheduler &
-airflow webserver --port 8080
+```text
+http://localhost:5000
 ```
-👉 Truy cập: **`http://localhost:8080`** (Tài khoản: `admin` / `admin`), tìm kiếm `student_mlops_dag`, bật toggle **Unpause** và bấm **Trigger DAG**.
 
-### 4.5. Chạy Trực tiếp FastAPI & Gradio UI (Không dùng Docker)
-Nếu muốn phát triển và kiểm tra trực tiếp trên máy:
+Để xem thông tin thí nghiệm, code huấn luyện cần tích hợp các lệnh logging tương ứng của MLflow. Chỉ khởi chạy giao diện không tự động tạo ra dữ liệu thí nghiệm.
+
+Mặc định, MLflow UI có thể sử dụng backend lưu trữ cục bộ. Nếu muốn chia sẻ dữ liệu tracking giữa nhiều máy hoặc lưu trữ lâu dài, cần cấu hình backend và artifact store phù hợp.
+
+## 9. Điều phối pipeline bằng Apache Airflow
+
+Dự án sử dụng Apache Airflow để điều phối các bước trong pipeline thông qua DAG.
+
+Môi trường hiện tại:
+
+- Apache Airflow: `3.3.2`
+- Python: `3.12.11`
+
+### Cài đặt Airflow
+
+Nên cài Airflow trong môi trường Python riêng để tránh xung đột với các thư viện của dự án ML.
+
+Ví dụ trên môi trường Python 3.12:
+
 ```bash
-# Terminal 1: Chạy FastAPI backend
-uvicorn project.src.api.main:app --host 0.0.0.0 --port 8000 --reload
+python -m pip install "apache-airflow==3.3.2" \
+  --constraint "https://raw.githubusercontent.com/apache/airflow/constraints-3.3.2/constraints-3.12.txt"
+```
 
-# Terminal 2: Chạy Gradio frontend
+Nếu Airflow đã được cài và hoạt động trong môi trường hiện tại, không cần cài lại.
+
+### Khởi chạy Airflow
+
+```bash
+airflow standalone
+```
+
+Sau khi khởi động, truy cập:
+
+```text
+http://localhost:8080
+```
+
+Thông tin đăng nhập được tạo hoặc hiển thị trong quá trình khởi tạo Airflow. Không lưu mật khẩu thật trong README hoặc repository công khai.
+
+### Cấu hình DAG
+
+DAG dự kiến nằm trong:
+
+```text
+dags/student_mlops_dag.py
+```
+
+Cần bảo đảm DAG gọi đúng các bước trong pipeline, sử dụng đúng đường dẫn dự án và chạy trong môi trường có đủ thư viện, dataset và model cần thiết.
+
+Airflow `standalone` phù hợp cho phát triển và thử nghiệm cục bộ, không phải cấu hình triển khai production.
+
+## 10. API dự đoán bằng FastAPI
+
+Nếu API đã được triển khai trong `project/src/api/main.py`, có thể khởi chạy bằng:
+
+```bash
+uvicorn project.src.api.main:app --host 127.0.0.1 --port 8000
+```
+
+Mở tài liệu API tại:
+
+```text
+http://localhost:8000/docs
+```
+
+API cần nạp model đã huấn luyện và xác thực dữ liệu đầu vào theo schema được định nghĩa trong code.
+
+Để kiểm thử API:
+
+```bash
+pytest
+```
+
+Cấu trúc JSON đầu vào và endpoint dự đoán cần tuân theo implementation thực tế của `main.py` và `schemas.py`.
+
+## 11. Giao diện dự đoán bằng Gradio
+
+Nếu giao diện được triển khai tại `project/src/ui/app.py`, chạy:
+
+```bash
 python project/src/ui/app.py
 ```
-👉 Truy cập Gradio UI tại: **`http://localhost:7860`**
+
+Địa chỉ truy cập phụ thuộc vào cấu hình trong ứng dụng Gradio; thông thường giao diện chạy trên cổng `7860`.
+
+## 12. Kiểm thử và CI/CD
+
+Dự án có thể sử dụng GitHub Actions để tự động hóa các bước:
+
+- Kiểm tra lỗi cú pháp và chất lượng code.
+- Chạy unit test bằng Pytest.
+- Kiểm tra API.
+- Kiểm tra điều kiện chất lượng mô hình nếu workflow đã tích hợp quality gate.
+
+Workflow tham chiếu:
+
+```text
+.github/workflows/ci.yml
+```
+
+Sau khi cập nhật code, có thể chạy kiểm thử cục bộ:
+
+```bash
+pytest
+```
+
+Các bước thực tế của CI phụ thuộc vào file workflow hiện có trong repository.
+
+## 13. Docker
+
+Nếu `Dockerfile`, `dockerfile.ui` và `docker-compose.yml` đã được cấu hình đầy đủ, có thể thử khởi chạy các dịch vụ bằng:
+
+```bash
+docker compose up -d --build
+```
+
+Kiểm tra container:
+
+```bash
+docker compose ps
+docker compose logs -f
+```
+
+Dừng các dịch vụ:
+
+```bash
+docker compose down
+```
+
+Các cổng, biến môi trường và dịch vụ được khởi chạy phụ thuộc vào nội dung `docker-compose.yml`. Cần kiểm tra file này trước khi sử dụng các lệnh trên.
+
+## 14. Bảo mật và quản lý thông tin xác thực
+
+- Không commit Access Key hoặc Secret Access Key của Cloudflare R2.
+- Không commit mật khẩu Airflow, token API hoặc các file `.env` chứa thông tin nhạy cảm.
+- Không đưa thông tin xác thực vào README.
+- Nếu sử dụng R2 công khai, chỉ lưu những dữ liệu được phép công khai.
+- Nếu cần giữ dataset riêng tư, sử dụng cơ chế xác thực thay vì URL công khai.
+- Không sử dụng cấu hình phát triển như Airflow `standalone` hoặc API bind toàn bộ network interface cho môi trường production mà chưa có biện pháp bảo vệ phù hợp.
+
+## 15. Hướng phát triển
+
+Các hướng phát triển có thể cân nhắc:
+
+- Khóa phiên bản thư viện để tái lập môi trường.
+- Bổ sung kiểm tra chất lượng dữ liệu trước khi train.
+- Hoàn thiện logging và tracking cho MLflow.
+- Hoàn thiện DAG và cơ chế retry trong Airflow.
+- Bổ sung kiểm thử tích hợp cho pipeline.
+- Triển khai API bằng Docker.
+- Cấu hình lưu trữ artifact và tracking tập trung.
+- Bổ sung giám sát chất lượng dự đoán khi triển khai thực tế.
+
+## 16. License
+
+Bổ sung thông tin license phù hợp trước khi công bố hoặc cho phép người khác sử dụng lại mã nguồn.
 
 ---
 
-## 🐳 5. Triển khai Hệ thống với Docker & Docker Compose
-
-Cách nhanh nhất để chạy toàn bộ hệ thống (FastAPI Backend + Gradio UI) là sử dụng Docker Compose:
-
-```bash
-# 1. Build image và khởi động các container ở chế độ chạy ngầm
-docker-compose up -d --build
-
-# 2. Kiểm tra trạng thái hoạt động của các container
-docker-compose ps
-
-# 3. Xem nhật ký log thời gian thực
-docker-compose logs -f
-```
-
-### Danh sách Cổng Dịch vụ:
-| Dịch vụ | Đường dẫn truy cập | Mục đích |
-| :--- | :--- | :--- |
-| **Gradio Web UI** | `http://localhost:7860` | Giao diện nhập thông tin sinh viên và nhận kết quả dự đoán |
-| **FastAPI Backend** | `http://localhost:8000` | REST API nhận payload và suy luận mô hình |
-| **Swagger API Docs** | `http://localhost:8000/docs` | Tài liệu OpenAPI tương tác trực tiếp |
-| **MLflow Server** (nếu bật) | `http://localhost:5000` | Quản lý thí nghiệm và Model Registry |
-| **Apache Airflow** (nếu bật) | `http://localhost:8080` | Quản lý và lập lịch DAG điều phối |
-
-Dừng và thu hồi tài nguyên các container:
-```bash
-docker-compose down
-```
-
----
-
-## 🧪 6. Kiểm thử Endpoint API (API Testing)
-
-Gửi request kiểm tra kết quả dự đoán tới API qua lệnh `curl`:
-
-```bash
-curl -X 'POST' \
-  'http://localhost:8000/predict' \
-  -H 'accept: application/json' \
-  -H 'Content-Type: application/json' \
-  -d '{
-    "Marital_status": 1,
-    "Application_mode": 1,
-    "Application_order": 1,
-    "Course": 9254,
-    "Daytime_evening_attendance": 1,
-    "Previous_qualification": 1,
-    "Nacionality": 1,
-    "Mother_qualification": 1,
-    "Father_qualification": 3,
-    "Mother_occupation": 5,
-    "Father_occupation": 3,
-    "Displaced": 1,
-    "Educational_special_needs": 0,
-    "Debtor": 0,
-    "Tuition_fees_up_to_date": 1,
-    "Gender": 1,
-    "Scholarship_holder": 0,
-    "Age_at_enrollment": 20,
-    "International": 0,
-    "Curricular_units_1st_sem_credited": 0,
-    "Curricular_units_1st_sem_enrolled": 0,
-    "Curricular_units_1st_sem_evaluations": 0,
-    "Curricular_units_1st_sem_approved": 0,
-    "Curricular_units_1st_sem_grade": 0.0,
-    "Curricular_units_1st_sem_without_evaluations": 0,
-    "Curricular_units_2nd_sem_credited": 0,
-    "Curricular_units_2nd_sem_enrolled": 0,
-    "Curricular_units_2nd_sem_evaluations": 0,
-    "Curricular_units_2nd_sem_approved": 0,
-    "Curricular_units_2nd_sem_grade": 0.0,
-    "Curricular_units_2nd_sem_without_evaluations": 0,
-    "Unemployment_rate": 10.8,
-    "Inflation_rate": 1.4,
-    "GDP": 1.74
-}'
-```
+**Ghi chú:** README mô tả mục tiêu và cách chạy dự án. Trước khi phát hành, hãy xác nhận cấu trúc file, lệnh chạy, DAG Airflow, các endpoint API và cấu hình Docker thực tế khớp với nội dung tài liệu.

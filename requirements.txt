@@ -10,3 +10,4 @@ gradio
 requests
 mlflow
 pytest
+dvc[s3]
